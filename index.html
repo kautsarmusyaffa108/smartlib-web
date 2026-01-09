@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <title>SmartLib Pro - Digital Library</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+    
+    body { 
+      -webkit-user-select: none; user-select: none; 
+      background-color: #050B18; 
+      font-family: 'Inter', sans-serif; 
+      scroll-behavior: smooth;
+    }
+
+    /* Proteksi PDF Overlay */
+    /* Update Proteksi PDF agar Scroll Tetap Jalan */
+.no-download-overlay { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  z-index: 50; 
+  background: transparent;
+  pointer-events: none; /* PENTING: Agar scroll menembus ke PDF */
+}
+
+/* Pastikan container PDF bisa scroll di HP */
+#pdfViewer .relative {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+    /* Animasi Card */
+    .animate-in { 
+      animation: fadeIn 0.4s ease-out forwards; 
+    }
+    @keyframes fadeIn { 
+      from { opacity: 0; transform: translateY(20px); } 
+      to { opacity: 1; transform: translateY(0); } 
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #050B18; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+
+    /* Glassmorphism Effect */
+    .glass {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body class="text-white min-h-screen">
+
+  <div class="max-w-md lg:max-w-6xl mx-auto p-6 pb-32">
+    
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+      <div id="headerLogo" class="flex items-center gap-4 cursor-pointer" onclick="triggerAdmin()">
+        <div class="bg-indigo-600 p-3 rounded-2xl shadow-lg shadow-indigo-500/20">
+          <i class="fas fa-book-reader text-white text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-xl leading-tight tracking-tight">SmartLib Pro</h1>
+          <p class="text-[10px] text-indigo-400 tracking-[0.2em] uppercase font-black">Digital Archive</p>
+        </div>
+      </div>
+
+      <div class="relative flex-1 lg:max-w-md">
+        <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+        <input type="text" id="searchInput" placeholder="Cari judul buku atau penulis..." 
+          class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm outline-none focus:border-indigo-500 transition-all">
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-[#102a5a] to-[#071533] p-8 lg:p-12 rounded-[40px] border border-white/5 mb-10 relative overflow-hidden shadow-2xl">
+      <div class="absolute -right-20 -top-20 w-64 h-64 bg-blue-500 opacity-10 rounded-full blur-[100px]"></div>
+      <div class="relative z-10 max-w-xl">
+        <h2 class="text-3xl lg:text-4xl font-bold mb-4">Halo, <span class="text-cyan-400">Pustakawan!</span></h2>
+        <p class="text-gray-400 text-sm lg:text-base leading-relaxed mb-8">
+          Temukan koleksi buku digital eksklusif. Sistem kami memastikan pengalaman membaca yang aman, cepat, dan interaktif di semua perangkat.
+        </p>
+        <button onclick="scrollToBooks()" class="bg-white text-[#051129] px-8 py-4 rounded-2xl font-bold flex items-center gap-3 hover:scale-105 transition-all">
+          Jelajahi Koleksi <i class="fas fa-arrow-right text-xs"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="adminPanel" class="hidden animate-in bg-indigo-950/20 p-6 rounded-[30px] border border-indigo-500/30 mb-10 relative glass">
+      <button onclick="closeAdminPanel()" class="absolute top-6 right-6 text-gray-400 hover:text-white">
+        <i class="fas fa-times-circle text-xl"></i>
+      </button>
+      <h3 class="font-bold mb-6 text-indigo-300 flex items-center gap-2 uppercase tracking-widest text-xs">
+        <i class="fas fa-user-shield"></i> System Control access
+      </h3>
+      
+      <div id="loginSection" class="max-w-sm">
+        <input type="password" id="adminPass" placeholder="Password Admin" class="w-full bg-black/40 p-4 rounded-2xl mb-4 border border-white/10 outline-none focus:border-indigo-500 text-sm">
+        <button onclick="checkAdmin()" class="w-full bg-indigo-600 py-4 rounded-2xl font-bold">Otentikasi</button>
+      </div>
+
+      <div id="uploadSection" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <input type="text" id="newTitle" placeholder="Judul Buku" class="bg-black/40 p-4 rounded-2xl border border-white/10 text-sm">
+        <input type="text" id="newAuthor" placeholder="Nama Penulis" class="bg-black/40 p-4 rounded-2xl border border-white/10 text-sm">
+        <input type="text" id="newUrl" placeholder="Link Direct PDF (G-Drive)" class="bg-black/40 p-4 rounded-2xl border border-white/10 text-sm">
+        <button id="btnSimpan" class="lg:col-span-3 bg-cyan-500 py-4 rounded-2xl font-bold text-black shadow-lg shadow-cyan-500/20 transition-all hover:bg-cyan-400">Publikasikan Buku</button>
+      </div>
+    </div>
+
+    <div class="flex justify-between items-end mb-8">
+      <div>
+        <h3 class="font-bold text-2xl">Koleksi Digital</h3>
+        <p class="text-xs text-gray-500 mt-1 uppercase tracking-widest">Update Real-time dari Cloud</p>
+      </div>
+      <span class="text-xs font-bold bg-white/5 px-4 py-2 rounded-full border border-white/5" id="bookCount">0 Buku</span>
+    </div>
+    
+    <div id="book-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="bg-white/5 h-40 rounded-[30px] animate-pulse"></div>
+      <div class="bg-white/5 h-40 rounded-[30px] animate-pulse"></div>
+      <div class="bg-white/5 h-40 rounded-[30px] animate-pulse"></div>
+    </div>
+  </div>
+
+  <div id="pdfViewer" class="fixed inset-0 bg-[#050B18] z-[100] hidden flex flex-col">
+    <div class="p-4 flex justify-between items-center bg-[#050B18]/95 backdrop-blur-md border-b border-white/5 z-10">
+      <button onclick="closePDF()" class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-white/10 transition">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <div class="text-center">
+        <h3 id="pdfTitle" class="font-bold text-xs uppercase tracking-widest truncate max-w-[200px]">Membaca</h3>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="alert('Bookmark disimpan!')" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10"><i class="far fa-bookmark text-sm"></i></button>
+        <button onclick="shareLink()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10"><i class="fas fa-share-alt text-sm"></i></button>
+      </div>
+    </div>
+
+    <div class="relative flex-1 bg-[#111] overflow-hidden">
+      <div id="pdfLoading" class="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
+        <div class="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-[10px] tracking-[0.3em] uppercase">Mempersiapkan Dokumen</p>
+      </div>
+      <div class="no-download-overlay" oncontextmenu="return false;"></div>
+      <iframe id="pdfFrame" src="" class="w-full h-full border-none lg:w-[75%] lg:mx-auto block relative z-10 opacity-0 transition-opacity duration-700" onload="onPDFLoaded()"></iframe>
+    </div>
+    
+    <div class="p-4 bg-black/40 text-center">
+      <button onclick="reportBug()" class="text-[10px] text-gray-600 hover:text-red-400 uppercase tracking-widest font-bold transition">
+        <i class="fas fa-bug mr-2"></i> Laporkan Bug ke Developer
+      </button>
+    </div>
+  </div>
+
+  <nav class="fixed bottom-6 left-6 right-6 bg-[#071533]/80 backdrop-blur-2xl border border-white/10 rounded-[25px] p-4 lg:hidden z-50 shadow-2xl">
+    <div class="flex justify-around items-center text-gray-500">
+      <button class="text-cyan-400"><i class="fas fa-home text-xl"></i></button>
+      <button onclick="scrollToBooks()"><i class="fas fa-book text-xl"></i></button>
+      <button onclick="triggerAdmin()"><i class="fas fa-shield-alt text-xl"></i></button>
+      <button><i class="fas fa-user text-xl"></i></button>
+    </div>
+  </nav>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // --- CONFIG FIREBASE ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCcpD_zNN4wU5LNf8CNrJob-VeIXzHUHcs",
+      authDomain: "smartlib-52fd5.firebaseapp.com",
+      projectId: "smartlib-52fd5",
+      storageBucket: "smartlib-52fd5.firebasestorage.app",
+      messagingSenderId: "1012709877032",
+      appId: "1:1012709877032:web:e3bfe303c7f2819cbd1c1d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Fungsi Hapus Buku
+    window.deleteBook = async (id) => {
+      if(confirm("Hapus buku ini dari database?")) {
+        try {
+          await deleteDoc(doc(db, "buku", id));
+          alert("Buku dihapus.");
+        } catch (e) { alert("Error: " + e); }
+      }
+    };
+
+    // Load Data Buku Real-time
+    const q = query(collection(db, "buku"), orderBy("judul", "asc"));
+    onSnapshot(q, (snapshot) => {
+      const bookList = document.getElementById('book-list');
+      bookList.innerHTML = '';
+      document.getElementById('bookCount').innerText = `${snapshot.size} Buku`;
+
+      snapshot.forEach((doc) => {
+        const book = doc.data();
+        const bookId = doc.id;
+        
+        const card = document.createElement('div');
+        card.className = "animate-in bg-white/5 p-6 rounded-[35px] border border-white/5 hover:bg-white/10 transition-all group cursor-pointer flex flex-col justify-between h-full relative overflow-hidden";
+        card.onclick = () => window.readPDF(book.judul, book.url);
+        
+        card.innerHTML = `
+          <div class="flex items-center gap-5 mb-6">
+            <div class="w-16 h-20 bg-gradient-to-br from-indigo-600/30 to-indigo-900/60 rounded-2xl flex-shrink-0 flex items-center justify-center border border-white/10 shadow-xl group-hover:scale-110 transition-transform">
+              <i class="fas fa-file-pdf text-indigo-400 text-2xl"></i>
+            </div>
+            <div class="flex-1 overflow-hidden text-white">
+              <h4 class="font-bold text-base leading-tight truncate">${book.judul}</h4>
+              <p class="text-[10px] text-gray-500 mt-2 uppercase tracking-[0.2em] font-medium truncate">${book.author}</p>
+            </div>
+          </div>
+          <div class="flex items-center justify-between border-t border-white/5 pt-5">
+            <button onclick="event.stopPropagation(); deleteBook('${bookId}')" class="btn-hapus hidden w-10 h-10 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-full transition">
+              <i class="fas fa-trash-alt text-xs"></i>
+            </button>
+            <div class="flex items-center gap-3 text-indigo-400 font-bold text-[10px] tracking-widest uppercase ml-auto">
+              Baca <i class="fas fa-play text-[8px] bg-indigo-500 text-white w-6 h-6 flex items-center justify-center rounded-full"></i>
+            </div>
+          </div>
+        `;
+        bookList.appendChild(card);
+      });
+    });
+
+    // Simpan Buku
+    document.getElementById('btnSimpan').onclick = async () => {
+      const title = document.getElementById('newTitle').value;
+      const author = document.getElementById('newAuthor').value;
+      const url = document.getElementById('newUrl').value;
+
+      if(title && url) {
+        await addDoc(collection(db, "buku"), { judul: title, author: author || "Anonim", url: url });
+        alert("Buku dipublikasikan!");
+        document.getElementById('newTitle').value = '';
+        document.getElementById('newUrl').value = '';
+      }
+    };
+  </script>
+
+  <script>
+    // --- LOGIKA UI ---
+
+    function triggerAdmin() {
+      window.tapAdmin = (window.tapAdmin || 0) + 1;
+      if (window.tapAdmin === 5) {
+        document.getElementById('adminPanel').classList.remove('hidden');
+        window.tapAdmin = 0;
+      }
+    }
+
+    function checkAdmin() {
+      const pass = document.getElementById('adminPass').value;
+      if(pass === "admin123") {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('uploadSection').classList.remove('hidden');
+        document.querySelectorAll('.btn-hapus').forEach(b => b.classList.remove('hidden'));
+      } else { alert("Akses Ditolak!"); }
+    }
+
+    function closeAdminPanel() {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('uploadSection').classList.add('hidden');
+      document.querySelectorAll('.btn-hapus').forEach(b => b.classList.add('hidden'));
+    }
+
+    // PDF READER CORE
+    function readPDF(title, url) {
+      document.getElementById('pdfTitle').innerText = title;
+      document.getElementById('pdfLoading').classList.remove('hidden');
+      const frame = document.getElementById('pdfFrame');
+      frame.classList.add('opacity-0');
+      
+      let cleanUrl = url;
+      if (url.includes('drive.google.com')) {
+        const idMatch = url.match(/\/d\/(.+?)\//) || url.match(/id=(.+?)(&|$)/);
+        if (idMatch && idMatch[1]) {
+          cleanUrl = `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+        }
+      } else {
+        cleanUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+      }
+
+      frame.src = cleanUrl;
+      document.getElementById('pdfViewer').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    window.onPDFLoaded = () => {
+      document.getElementById('pdfLoading').classList.add('hidden');
+      document.getElementById('pdfFrame').classList.remove('opacity-0');
+    };
+
+    function closePDF() {
+      document.getElementById('pdfViewer').classList.add('hidden');
+      document.getElementById('pdfFrame').src = '';
+      document.body.style.overflow = 'auto';
+    }
+
+    // SEARCH FILTER
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const keyword = e.target.value.toLowerCase();
+      document.querySelectorAll('#book-list > div').forEach(card => {
+        const text = card.innerText.toLowerCase();
+        card.style.display = text.includes(keyword) ? 'flex' : 'none';
+      });
+    });
+
+    function scrollToBooks() {
+      document.getElementById('book-list').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function reportBug() {
+      const msg = prompt("Apa kendala Anda?");
+      if(msg) alert("Laporan terkirim. Terima kasih!");
+    }
+
+    function shareLink() {
+      if (navigator.share) {
+        navigator.share({ title: 'SmartLib', url: window.location.href });
+      }
+    }
+  </script>
+</body>
+</html>
