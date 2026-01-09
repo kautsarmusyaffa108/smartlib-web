@@ -231,6 +231,21 @@
         bookList.appendChild(card);
       });
     });
+// Tambahkan di dalam bagian <script type="module">
+window.reportBug = async () => {
+  const msg = prompt("Apa kendala Anda?");
+  if(msg) {
+    try {
+      await addDoc(collection(db, "laporan_bug"), {
+        pesan: msg,
+        waktu: new Date()
+      });
+      alert("Laporan sudah terkirim ke database admin!");
+    } catch (e) {
+      alert("Gagal mengirim: " + e);
+    }
+  }
+};
 
     // Simpan Buku
     document.getElementById('btnSimpan').onclick = async () => {
